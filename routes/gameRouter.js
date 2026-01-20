@@ -62,7 +62,7 @@ router.get("/games", async (req, res) => {
             items: games,
             _links: {
                 self: {
-                    href: `${process.env.BASE_URI}`
+                    href: `${process.env.BASE_URI}${pagination.self}`
                 },
                 collection: {
                     href: `${process.env.BASE_URI}`
@@ -83,13 +83,7 @@ router.get("/games", async (req, res) => {
                         href: `${process.env.BASE_URI}${pagination.lastUri}`
                     },
                     previous: pagination.previous,
-                    next: pagination.next,
-                    self: {
-                        href: `${process.env.BASE_URI}${pagination.self}`
-                    },
-                    collection: {
-                        href: `${process.env.BASE_URI}`
-                    }
+                    next: pagination.next
                 }
             }
         }
