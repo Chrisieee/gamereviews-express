@@ -24,16 +24,15 @@ router.use((req, res, next) => {
 //get routes
 //voor hele collectie met pagination
 router.get("/games", async (req, res) => {
-    let pagination = {firstUri: "", lastUri: "", previousUri: "", nextUri: "", previous: null, next: null, self: ""}
-
+    //verschillende variabelen voor pagination
+    let pagination = {firstUri: "", lastUri: "", previousUri: "", nextUri: "", self: ""}
     const page = Number(req.query?.page) || 1
     const limit = Number(req.query?.limit) || 0
     const skip = (page - 1) * limit
-
     const totalItems = await Game.countDocuments();
     let totalPages = Math.ceil(totalItems / limit);
-
-    const games = await Game.find({}).select(["title", "game", "player"]).skip(skip).limit(limit)
+    //query
+    const games = await Game.find({}).select(["title", "game", "player", "favorite"]).skip(skip).limit(limit)
 
     if (req.query?.page && req.query?.limit) {
         pagination.firstUri = `?page=1&limit=${limit}`
@@ -41,16 +40,7 @@ router.get("/games", async (req, res) => {
         pagination.previousUri = `?page=${page - 1}&limit=${limit}`
         pagination.nextUri = `?page=${page + 1}&limit=${limit}`
         pagination.self = `?page=${page}&limit=${limit}`
-        if (page !== 1) {
-            pagination.previous = {
-                page: page - 1,
-                href: `${process.env.BASE_URI}${pagination.previousUri}`
-            }
-            pagination.next = page < totalPages ? {
-                page: page + 1,
-                href: `${process.env.BASE_URI}${pagination.nextUri}`
-            } : null
-        } else {
+        if (page === 1) {
             totalPages = 1
         }
     } else {
@@ -82,8 +72,14 @@ router.get("/games", async (req, res) => {
                         page: totalPages,
                         href: `${process.env.BASE_URI}${pagination.lastUri}`
                     },
-                    previous: pagination.previous,
-                    next: pagination.next
+                    previous: page > 1 ? {
+                        page: page - 1,
+                        href: `${process.env.BASE_URI}${pagination.previousUri}`
+                    } : null,
+                    next: page < totalPages ? {
+                        page: page + 1,
+                        href: `${process.env.BASE_URI}${pagination.nextUri}`
+                    } : null
                 }
             }
         }
@@ -157,12 +153,13 @@ router.post("/games", async (req, res) => {
             genre: req.body.genre,
             player: req.body.player,
             playedConsole: req.body.playedConsole,
-            review: req.body.review
+            review: req.body.review,
+            favorite: req.body.favorite ?? false
         })
         await game.save()
         res.status(201).json(game)
     } else {
-        res.status(400).json({message: "Something went wrong", request: req.body ?? "body is leeg"})
+        res.status(400).json({message: "Something went wrong"})
     }
 })
 
@@ -185,6 +182,10 @@ router.put("/games/:id", async (req, res) => {
         game.playedConsole = req.body.playedConsole
         game.review = req.body.review
 
+        if (req.body.favorite) {
+            game.favorite = req.body.favorite
+        }
+
         const succes = await game.save()
         res.status(200).json(succes)
     } catch (e) {
@@ -196,20 +197,48 @@ router.put("/games/:id", async (req, res) => {
 router.patch("/games/:id", async (req, res) => {
     const id = req.params.id
 
-    if (req.body) {
+    if (req.body?.title || req.body?.game || req.body?.genre || req.body?.player || req.body?.playedConsole || req.body?.review || req.body?.favorite) {
         try {
             const game = await Game.findById(id)
             if (!game) {
                 res.status(404).json({message: "Not found"})
             }
 
-            game.favorite = !game.favorite;
+            if (req.body.title) {
+                game.title = req.body.title
+            }
+
+            if (req.body.game) {
+                game.game = req.body.game
+            }
+
+            if (req.body.genre) {
+                game.genre = req.body.genre
+            }
+
+            if (req.body.player) {
+                game.player = req.body.player
+            }
+
+            if (req.body.playedConsole) {
+                game.playedConsole = req.body.playedConsole
+            }
+
+            if (req.body.review) {
+                game.review = req.body.review
+            }
+
+            if (req.body.favorite) {
+                game.favorite = !game.favorite;
+            }
 
             const succes = await game.save()
             res.status(200).json(succes)
         } catch (e) {
             res.status(400).send(e.message)
         }
+    } else {
+        res.status(400).json({message: "Something went wrong"})
     }
 })
 
