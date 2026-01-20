@@ -83,17 +83,20 @@ router.get("/games/:id", async (req, res) => {
 
 
 //create route
-router.post("/games", (req, res) => {
-    if (req.body?.title && req.body?.author && req.body?.body) {
+router.post("/games", async (req, res) => {
+    if (req.body?.title && req.body?.game && req.body?.genre && req.body?.player && req.body?.playedConsole && req.body?.review) {
         const game = Game({
             title: req.body.title,
-            author: req.body.author,
-            body: req.body.body,
+            game: req.body.game,
+            genre: req.body.genre,
+            player: req.body.player,
+            playedConsole: req.body.playedConsole,
+            review: req.body.review
         })
-        game.save()
+        await game.save()
         res.status(201).json(game)
     } else {
-        res.status(400).json({message: "Something went wrong"})
+        res.status(400).json({message: "Something went wrong", request: req.body ?? "body is leeg"})
     }
 })
 

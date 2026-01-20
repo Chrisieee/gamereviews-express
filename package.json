@@ -1,7 +1,15 @@
 {
-  "name": "prog06-backend",
+  "name": "gamereviews-express",
   "version": "1.0.0",
   "description": "",
+  "homepage": "https://github.com/Chrisieee/gamereviews-express#readme",
+  "bugs": {
+    "url": "https://github.com/Chrisieee/gamereviews-express/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Chrisieee/gamereviews-express.git"
+  },
   "license": "ISC",
   "author": "",
   "type": "module",
@@ -10,8 +18,6 @@
     "dev": "node --env-file=.env --watch index.js"
   },
   "dependencies": {
-    "@faker-js/faker": "^10.2.0",
-    "express": "^5.2.1",
-    "mongoose": "^9.1.4"
+    "express": "^5.2.1"
   }
 }

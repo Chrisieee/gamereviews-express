@@ -10,7 +10,6 @@ const gameModel = new mongoose.Schema({
         review: {type: String, required: true},
     }, {
         toJSON: {
-            timestamps: true,
             virtuals: true,
             versionKey: false,
             transform: (doc, ret) => {
@@ -26,7 +25,9 @@ const gameModel = new mongoose.Schema({
                 delete ret._id;
             },
         },
-    }
+    }, {
+        timestamps: true
+    },
 )
 
 const Game = mongoose.model("Game", gameModel)
