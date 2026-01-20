@@ -82,7 +82,38 @@ router.get("/games/:id", async (req, res) => {
 })
 
 
-//create route
+//create routes
+//seeder
+router.post("/games", async (req, res, next) => {
+    if (req.body?.method && req.body.method === "SEED") {
+
+        const reset = req.body?.reset ?? false
+        if (reset && reset === "true") {
+            await Game.deleteMany({})
+        }
+
+        const amount = req.body?.amount ?? 5
+        const games = []
+
+        for (let i = 0; i < amount; i++) {
+            const game = Game({
+                title: fakerNL.lorem.slug(5),
+                player: fakerNL.book.author(),
+                game: fakerNL.book.title(),
+                genre: fakerNL.lorem.word(),
+                playedConsole: fakerNL.lorem.word(),
+                review: fakerNL.lorem.slug(20)
+            })
+            game.save()
+            games.push(game)
+        }
+
+        res.status(201).send(games)
+    } else {
+        next()
+    }
+})
+
 router.post("/games", async (req, res) => {
     if (req.body?.title && req.body?.game && req.body?.genre && req.body?.player && req.body?.playedConsole && req.body?.review) {
         const game = Game({
@@ -102,14 +133,44 @@ router.post("/games", async (req, res) => {
 
 
 //update routes
-router.put("/games/:id", (req, res) => {
+router.put("/games/:id", async (req, res) => {
+    const id = req.params.id
 
+    try {
+        const game = await Game.findById(id)
+        if (!game) {
+            res.status(404).json({message: "Not found"})
+        }
+
+        game.title = req.body.title
+        game.game = req.body.game
+        game.genre = req.body.genre
+        game.player = req.body.player
+        game.playedConsole = req.body.playedConsole
+        game.review = req.body.review
+
+        const succes = await game.save()
+        res.status(200).json(succes)
+    } catch (e) {
+        res.status(400).send(e.message)
+    }
 })
 
 
 //delete route
-router.delete("/games/:id", (req, res) => {
-
+router.delete("/games/:id", async (req, res) => {
+    const id = req.params.id
+    try {
+        const game = await Game.findById(id)
+        if (!game) {
+            res.status(404).json({message: "Not found"})
+        }
+        
+        await game.deleteOne()
+        res.status(204).send()
+    } catch (e) {
+        res.status(404).json({message: "Not found"})
+    }
 })
 
 //options routes
@@ -123,33 +184,6 @@ router.options("/games/:id", (req, res) => {
     res.header("Access-Control-Allow-Methods", "GET, PUT, DELETE, OPTIONS")
     res.header("Access-Control-Allow-Headers", "Content-Type, Accept")
     res.header("Allow", "GET, PUT, DELETE, OPTIONS").status(204).send()
-})
-
-
-//seeder
-router.post("/games/seed", async (req, res) => {
-    const reset = req.body?.reset
-    if (reset && reset === "true") {
-        await Game.deleteMany({})
-    }
-
-    const amount = req.body?.amount ?? 5
-    const games = []
-
-    for (let i = 0; i < amount; i++) {
-        const game = Game({
-            title: fakerNL.lorem.slug(5),
-            player: fakerNL.book.author(),
-            game: fakerNL.book.title(),
-            genre: fakerNL.lorem.word(),
-            playedConsole: fakerNL.lorem.word(),
-            review: fakerNL.lorem.slug(20)
-        })
-        game.save()
-        games.push(game)
-    }
-
-    res.status(201).send(games)
 })
 
 export default router
