@@ -9,8 +9,8 @@ const gameModel = new mongoose.Schema({
         favorite: {type: Boolean, required: true, default: false},
         review: {type: String, required: true},
     }, {
+        timestamps: true,
         toJSON: {
-            timestamps: true,
             virtuals: true,
             versionKey: false,
             transform: (doc, ret) => {

@@ -22,14 +22,42 @@ router.use((req, res, next) => {
 
 //get routes
 router.get("/games", async (req, res) => {
-    let games = ""
-    if (req.query?.limit) {
-        games = await Game.find({}).select(["title", "game", "player"]).limit(Number(req.query.limit))
+    let pagination = {
+        firstUri: "",
+        lastUri: "",
+        nextUri: "",
+        previous: null,
+        next: null
+    }
+
+    const page = Number(req.query?.page) || 1
+    const limit = Number(req.query?.limit) || 0
+    const skip = (page - 1) * limit
+
+    const totalItems = await Game.countDocuments();
+    let totalPages = Math.ceil(totalItems / limit);
+
+    const games = await Game.find({}).select(["title", "game", "player"]).skip(skip).limit(limit)
+
+    if (req.query?.page && req.query?.limit) {
+        pagination.firstUri = `?page=1&limit=${limit}`
+        pagination.lastUri = `?page=${totalPages}&limit=${limit}`
+        pagination.nextUri = `?page=${page + 1}&limit=${limit}`
+        if (page !== 1) {
+            pagination.previous = page - 1
+            pagination.next = {
+                page: page + 1,
+                href: `${process.env.BASE_URI}/${pagination.nextUri}`
+            }
+        } else {
+            totalPages = 1
+        }
     } else {
-        games = await Game.find({}).select(["title", "game", "player"])
+        totalPages = 1
     }
 
     if (games) {
+        const items = {games}
         const collection = {
             items: games,
             _links: {
@@ -40,27 +68,24 @@ router.get("/games", async (req, res) => {
                     href: `${process.env.BASE_URI}`
                 }
             },
-            // pagination: {
-            //     currentPage: req.query?.page ?? 1,
-            //     currentItems: req.query?.limit ?? collection.items.length,
-            //     totalPages: Math.ceil(this.items.length / req.query?.limit ?? 0),
-            //     totalItems: this.items.length,
-            //     _links: {
-            //         first: {
-            //             page: 1,
-            //             href: `${process.env.BASE_URI}/`
-            //         },
-            //         last: {
-            //             page: 2,
-            //             href: "http://example.com/?page=2&limit=6"
-            //         },
-            //         previous: null,
-            //         next: {
-            //             page: 2,
-            //             href: "http://example.com/?page=2&limit=6"
-            //         }
-            //     }
-            // }
+            pagination: {
+                currentPage: page,
+                currentItems: limit || totalItems,
+                totalPages: totalPages || 1,
+                totalItems: totalItems,
+                _links: {
+                    first: {
+                        page: 1,
+                        href: `${process.env.BASE_URI}/${pagination.firstUri}`
+                    },
+                    last: {
+                        page: totalPages,
+                        href: `${process.env.BASE_URI}/${pagination.lastUri}`
+                    },
+                    previous: pagination.previous,
+                    next: pagination.next
+                }
+            }
         }
         res.status(200).json(collection)
     } else {
@@ -165,7 +190,7 @@ router.delete("/games/:id", async (req, res) => {
         if (!game) {
             res.status(404).json({message: "Not found"})
         }
-        
+
         await game.deleteOne()
         res.status(204).send()
     } catch (e) {
