@@ -20,15 +20,11 @@ router.use((req, res, next) => {
     }
 })
 
+
 //get routes
+//voor hele collectie met pagination
 router.get("/games", async (req, res) => {
-    let pagination = {
-        firstUri: "",
-        lastUri: "",
-        nextUri: "",
-        previous: null,
-        next: null
-    }
+    let pagination = {firstUri: "", lastUri: "", previousUri: "", nextUri: "", previous: null, next: null, self: ""}
 
     const page = Number(req.query?.page) || 1
     const limit = Number(req.query?.limit) || 0
@@ -42,13 +38,18 @@ router.get("/games", async (req, res) => {
     if (req.query?.page && req.query?.limit) {
         pagination.firstUri = `?page=1&limit=${limit}`
         pagination.lastUri = `?page=${totalPages}&limit=${limit}`
+        pagination.previousUri = `?page=${page - 1}&limit=${limit}`
         pagination.nextUri = `?page=${page + 1}&limit=${limit}`
+        pagination.self = `?page=${page}&limit=${limit}`
         if (page !== 1) {
-            pagination.previous = page - 1
-            pagination.next = {
-                page: page + 1,
-                href: `${process.env.BASE_URI}/${pagination.nextUri}`
+            pagination.previous = {
+                page: page - 1,
+                href: `${process.env.BASE_URI}${pagination.previousUri}`
             }
+            pagination.next = page < totalPages ? {
+                page: page + 1,
+                href: `${process.env.BASE_URI}${pagination.nextUri}`
+            } : null
         } else {
             totalPages = 1
         }
@@ -57,7 +58,6 @@ router.get("/games", async (req, res) => {
     }
 
     if (games) {
-        const items = {games}
         const collection = {
             items: games,
             _links: {
@@ -76,14 +76,20 @@ router.get("/games", async (req, res) => {
                 _links: {
                     first: {
                         page: 1,
-                        href: `${process.env.BASE_URI}/${pagination.firstUri}`
+                        href: `${process.env.BASE_URI}${pagination.firstUri}`
                     },
                     last: {
                         page: totalPages,
-                        href: `${process.env.BASE_URI}/${pagination.lastUri}`
+                        href: `${process.env.BASE_URI}${pagination.lastUri}`
                     },
                     previous: pagination.previous,
-                    next: pagination.next
+                    next: pagination.next,
+                    self: {
+                        href: `${process.env.BASE_URI}${pagination.self}`
+                    },
+                    collection: {
+                        href: `${process.env.BASE_URI}`
+                    }
                 }
             }
         }
@@ -93,6 +99,7 @@ router.get("/games", async (req, res) => {
     }
 })
 
+//details van een specifieke resource met cachen
 router.get("/games/:id", async (req, res) => {
     const id = req.params.id
     try {
@@ -100,7 +107,15 @@ router.get("/games/:id", async (req, res) => {
         if (!game) {
             res.status(404).json({message: "Not found"})
         }
-        res.status(200).json(game)
+
+        const modified = new Date(req.headers["if-modified-since"]) ?? null
+        if (req.headers["if-modified-since"] && game.updatedAt < modified) {
+            res.header("last-modified", game.updatedAt)
+            res.status(304).json({message: "Not Modified"})
+        } else {
+            res.header("last-modified", game.updatedAt)
+            res.status(200).json(game)
+        }
     } catch (e) {
         res.status(404).json({message: "Not found"})
     }
@@ -139,6 +154,7 @@ router.post("/games", async (req, res, next) => {
     }
 })
 
+//create nieuw resource
 router.post("/games", async (req, res) => {
     if (req.body?.title && req.body?.game && req.body?.genre && req.body?.player && req.body?.playedConsole && req.body?.review) {
         const game = Game({
@@ -158,6 +174,7 @@ router.post("/games", async (req, res) => {
 
 
 //update routes
+//update hele resource
 router.put("/games/:id", async (req, res) => {
     const id = req.params.id
 
@@ -181,6 +198,26 @@ router.put("/games/:id", async (req, res) => {
     }
 })
 
+//favorite aan of uit zetten
+router.patch("/games/:id", async (req, res) => {
+    const id = req.params.id
+
+    if (req.body) {
+        try {
+            const game = await Game.findById(id)
+            if (!game) {
+                res.status(404).json({message: "Not found"})
+            }
+
+            game.favorite = !game.favorite;
+
+            const succes = await game.save()
+            res.status(200).json(succes)
+        } catch (e) {
+            res.status(400).send(e.message)
+        }
+    }
+})
 
 //delete route
 router.delete("/games/:id", async (req, res) => {
