@@ -1,6 +1,8 @@
 import express from "express"
 import mongoose from "mongoose"
-import router from "./routes/gameRouter.js"
+import router from "./routes/reviewRouter.js"
+import genreRouter from "./routes/genreRouter.js";
+import gameRouter from "./routes/gameRouter1.js";
 
 const app = express()
 
@@ -13,8 +15,10 @@ try {
 
     app.use(express.json());
     app.use(express.urlencoded({extended: true}));
-    
-    app.use("/", router)
+
+    app.use("/genres", genreRouter)
+    app.use("/games", gameRouter)
+    app.use("/reviews", router)
 
 } catch (e) {
     console.log("Database connection failed")

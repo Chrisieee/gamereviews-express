@@ -1,6 +1,7 @@
 import express from "express"
 import {fakerNL} from "@faker-js/faker"
-import Game from "../models/gameModel.js"
+import Review from "../models/reviewModel.js"
+import Game from "../models/gameModel.js";
 
 const router = express.Router()
 
@@ -23,16 +24,14 @@ router.use((req, res, next) => {
 
 //get routes
 //voor hele collectie met pagination
-router.get("/games", async (req, res) => {
+router.get("/", async (req, res) => {
     //verschillende variabelen voor pagination
-    let pagination = {firstUri: "", lastUri: "", previousUri: "", nextUri: "", self: ""}
+    let pagination = {firstUri: "", lastUri: "", previousUri: "", nextUri: "", self: "", genres: "", favorite: ""}
     const page = Number(req.query?.page) || 1
     const limit = Number(req.query?.limit) || 0
     const skip = (page - 1) * limit
-    const totalItems = await Game.countDocuments();
+    const totalItems = await Review.countDocuments();
     let totalPages = Math.ceil(totalItems / limit);
-    //query
-    const games = await Game.find({}).select(["title", "game", "player", "favorite"]).skip(skip).limit(limit)
 
     if (req.query?.page && req.query?.limit) {
         pagination.firstUri = `?page=1&limit=${limit}`
@@ -47,12 +46,35 @@ router.get("/games", async (req, res) => {
         totalPages = 1
     }
 
+    //filteren
+    let allgames = ""
+    let filter = {}
+    if (req.query?.genres) {
+        pagination.genres = req.query?.page ? `&genres=${req.query.genres}` : `?genres=${req.query.genres}`
+        allgames = await Game.find({genres: {$in: req.query.genres.split(",")}}).select("_id");
+    }
+    if (req.query?.favorite) {
+        filter.favorite = req.query.favorite
+        pagination.favorite = req.query?.page || req.query?.genres ? `&favorite=${req.query.favorite}` : `?favorite=${req.query.favorite}`
+    }
+
+
+    //query
+    let query = Review.find({
+        ...filter,
+        game: {$in: allgames.map(g => g._id)}
+    }).select(["title", "player", "favorite"])
+        .skip(skip).limit(limit).populate({
+            path: "game", populate: {path: "genres"}
+        })
+    let games = await query
+
     if (games) {
         const collection = {
             items: games,
             _links: {
                 self: {
-                    href: `${process.env.BASE_URI}${pagination.self}`
+                    href: `${process.env.BASE_URI}${pagination.self}${pagination.genres}${pagination.favorite}`
                 },
                 collection: {
                     href: `${process.env.BASE_URI}`
@@ -66,19 +88,19 @@ router.get("/games", async (req, res) => {
                 _links: {
                     first: {
                         page: 1,
-                        href: `${process.env.BASE_URI}${pagination.firstUri}`
+                        href: `${process.env.BASE_URI}${pagination.firstUri}${pagination.genres}${pagination.favorite}`
                     },
                     last: {
                         page: totalPages,
-                        href: `${process.env.BASE_URI}${pagination.lastUri}`
+                        href: `${process.env.BASE_URI}${pagination.lastUri}${pagination.genres}${pagination.favorite}`
                     },
                     previous: page > 1 ? {
                         page: page - 1,
-                        href: `${process.env.BASE_URI}${pagination.previousUri}`
+                        href: `${process.env.BASE_URI}${pagination.previousUri}${pagination.genres}${pagination.favorite}`
                     } : null,
                     next: page < totalPages ? {
                         page: page + 1,
-                        href: `${process.env.BASE_URI}${pagination.nextUri}`
+                        href: `${process.env.BASE_URI}${pagination.nextUri}${pagination.genres}${pagination.favorite}`
                     } : null
                 }
             }
@@ -90,10 +112,10 @@ router.get("/games", async (req, res) => {
 })
 
 //details van een specifieke resource met cachen
-router.get("/games/:id", async (req, res) => {
+router.get("/:id", async (req, res) => {
     const id = req.params.id
     try {
-        const game = await Game.findById(id)
+        const game = await Review.findById(id)
         if (!game) {
             res.status(404).json({message: "Not found"})
         }
@@ -114,23 +136,23 @@ router.get("/games/:id", async (req, res) => {
 
 //create routes
 //seeder
-router.post("/games", async (req, res, next) => {
+router.post("/", async (req, res, next) => {
     if (req.body?.method && req.body.method === "SEED") {
 
         const reset = req.body?.reset ?? false
         if (reset && reset === "true") {
-            await Game.deleteMany({})
+            await Review.deleteMany({})
         }
+        const seedgame = await Game.find({}).select("_id")
 
         const amount = req.body?.amount ?? 5
         const games = []
 
         for (let i = 0; i < amount; i++) {
-            const game = Game({
+            const game = Review({
                 title: fakerNL.lorem.slug(5),
                 player: fakerNL.book.author(),
-                game: fakerNL.book.title(),
-                genre: fakerNL.lorem.word(),
+                game: seedgame[0],
                 playedConsole: fakerNL.lorem.word(),
                 review: fakerNL.lorem.slug(20)
             })
@@ -145,9 +167,9 @@ router.post("/games", async (req, res, next) => {
 })
 
 //create nieuw resource
-router.post("/games", async (req, res) => {
+router.post("/", async (req, res) => {
     if (req.body?.title && req.body?.game && req.body?.genre && req.body?.player && req.body?.playedConsole && req.body?.review) {
-        const game = Game({
+        const game = Review({
             title: req.body.title,
             game: req.body.game,
             genre: req.body.genre,
@@ -166,11 +188,11 @@ router.post("/games", async (req, res) => {
 
 //update routes
 //update hele resource
-router.put("/games/:id", async (req, res) => {
+router.put("/:id", async (req, res) => {
     const id = req.params.id
 
     try {
-        const game = await Game.findById(id)
+        const game = await Review.findById(id)
         if (!game) {
             res.status(404).json({message: "Not found"})
         }
@@ -194,12 +216,12 @@ router.put("/games/:id", async (req, res) => {
 })
 
 //favorite aan of uit zetten
-router.patch("/games/:id", async (req, res) => {
+router.patch("/:id", async (req, res) => {
     const id = req.params.id
 
     if (req.body?.title || req.body?.game || req.body?.genre || req.body?.player || req.body?.playedConsole || req.body?.review || req.body?.favorite) {
         try {
-            const game = await Game.findById(id)
+            const game = await Review.findById(id)
             if (!game) {
                 res.status(404).json({message: "Not found"})
             }
@@ -243,10 +265,10 @@ router.patch("/games/:id", async (req, res) => {
 })
 
 //delete route
-router.delete("/games/:id", async (req, res) => {
+router.delete("/:id", async (req, res) => {
     const id = req.params.id
     try {
-        const game = await Game.findById(id)
+        const game = await Review.findById(id)
         if (!game) {
             res.status(404).json({message: "Not found"})
         }
@@ -259,13 +281,13 @@ router.delete("/games/:id", async (req, res) => {
 })
 
 //options routes
-router.options("/games", (req, res) => {
+router.options("/", (req, res) => {
     res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
     res.header("Access-Control-Allow-Headers", "Content-Type, Accept")
     res.header("Allow", "GET, POST, OPTIONS").status(204).send()
 })
 
-router.options("/games/:id", (req, res) => {
+router.options("/:id", (req, res) => {
     res.header("Access-Control-Allow-Methods", "GET, PUT, DELETE, OPTIONS")
     res.header("Access-Control-Allow-Headers", "Content-Type, Accept")
     res.header("Allow", "GET, PUT, DELETE, OPTIONS").status(204).send()

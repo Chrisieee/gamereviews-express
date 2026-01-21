@@ -6,5 +6,3 @@ Deze webservice is gemaakt in Express met een MongoDB database. Dit is onderdeel
 
 - JWT token
 - File upload
-- Filteren
-- Relaties?
