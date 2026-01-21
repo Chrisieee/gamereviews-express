@@ -16,6 +16,22 @@ try {
     app.use(express.json());
     app.use(express.urlencoded({extended: true}));
 
+    //middleware
+    app.use("/", (req, res, next) => {
+        const headers = req.headers["accept"]
+        const method = req.method
+
+        res.header("Access-Control-Allow-Origin", '*')
+
+        if (method === "OPTIONS") {
+            next()
+        } else if (headers && headers.includes("application/json")) {
+            next()
+        } else {
+            res.status(406).json({message: "Webservice only supports json."})
+        }
+    })
+
     app.use("/genres", genreRouter)
     app.use("/games", gameRouter)
     app.use("/reviews", router)

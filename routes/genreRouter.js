@@ -1,6 +1,5 @@
 import express from "express"
 import Genre from "../models/genreModel.js";
-import Game from "../models/gameModel.js";
 
 const genreRouter = express.Router()
 

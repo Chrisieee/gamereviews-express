@@ -1,7 +1,7 @@
 import express from "express"
 import Game from "../models/gameModel.js";
 import Genre from "../models/genreModel.js";
-import mongoose from "mongoose";
+import {fakerNL} from "@faker-js/faker";
 
 const gameRouter = express.Router()
 
@@ -11,6 +11,34 @@ gameRouter.get("/", async (req, res) => {
         res.status(200).json(games)
     } else {
         res.status(404).json({message: "Not found"})
+    }
+})
+
+gameRouter.post("/", async (req, res, next) => {
+    if (req.body?.method && req.body.method === "SEED") {
+
+        const reset = req.body?.reset ?? false
+        if (reset && reset === "true") {
+            await Game.deleteMany({})
+        }
+
+        const amount = req.body?.amount ?? 10
+        const games = []
+
+        for (let i = 0; i < amount; i++) {
+            const genre = await Genre.find({}).select("_id")
+            const number = Math.floor(Math.random() * 16)
+            const game = Game({
+                title: fakerNL.book.title(),
+                genres: genre[number],
+            })
+            await game.save()
+            games.push(game)
+        }
+        res.status(201).json(games)
+
+    } else {
+        next()
     }
 })
 

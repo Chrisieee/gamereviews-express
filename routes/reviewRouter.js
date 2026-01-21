@@ -5,23 +5,6 @@ import Game from "../models/gameModel.js";
 
 const router = express.Router()
 
-//middleware
-router.use((req, res, next) => {
-    const headers = req.headers["accept"]
-    const method = req.method
-
-    res.header("Access-Control-Allow-Origin", '*')
-
-    if (method === "OPTIONS") {
-        next()
-    } else if (headers && headers.includes("application/json")) {
-        next()
-    } else {
-        res.status(406).json({message: "Webservice only supports json."})
-    }
-})
-
-
 //get routes
 //voor hele collectie met pagination
 router.get("/", async (req, res) => {
@@ -39,9 +22,6 @@ router.get("/", async (req, res) => {
         pagination.previousUri = `?page=${page - 1}&limit=${limit}`
         pagination.nextUri = `?page=${page + 1}&limit=${limit}`
         pagination.self = `?page=${page}&limit=${limit}`
-        if (page === 1) {
-            totalPages = 1
-        }
     } else {
         totalPages = 1
     }
@@ -52,18 +32,17 @@ router.get("/", async (req, res) => {
     if (req.query?.genres) {
         pagination.genres = req.query?.page ? `&genres=${req.query.genres}` : `?genres=${req.query.genres}`
         allgames = await Game.find({genres: {$in: req.query.genres.split(",")}}).select("_id");
+        filter.game = {$in: allgames.map(g => g._id)}
     }
     if (req.query?.favorite) {
         filter.favorite = req.query.favorite
         pagination.favorite = req.query?.page || req.query?.genres ? `&favorite=${req.query.favorite}` : `?favorite=${req.query.favorite}`
     }
 
-
     //query
-    let query = Review.find({
-        ...filter,
-        game: {$in: allgames.map(g => g._id)}
-    }).select(["title", "player", "favorite"])
+    let query = Review.find(
+        filter
+    ).select(["title", "player", "favorite"])
         .skip(skip).limit(limit).populate({
             path: "game", populate: {path: "genres"}
         })
@@ -115,7 +94,9 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
     const id = req.params.id
     try {
-        const game = await Review.findById(id)
+        const game = await Review.findById(id).populate({
+            path: "game", populate: {path: "genres"}
+        })
         if (!game) {
             res.status(404).json({message: "Not found"})
         }
@@ -149,10 +130,12 @@ router.post("/", async (req, res, next) => {
         const games = []
 
         for (let i = 0; i < amount; i++) {
+            const number = Math.floor(Math.random() * await Game.countDocuments())
+
             const game = Review({
                 title: fakerNL.lorem.slug(5),
                 player: fakerNL.book.author(),
-                game: seedgame[0],
+                game: seedgame[number],
                 playedConsole: fakerNL.lorem.word(),
                 review: fakerNL.lorem.slug(20)
             })
