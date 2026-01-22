@@ -14,6 +14,15 @@ gameRouter.get("/", async (req, res) => {
     }
 })
 
+gameRouter.get("/:id", async (req, res) => {
+    const game = await Game.find(req.params.id)
+    if (game) {
+        res.status(200).json(game)
+    } else {
+        res.status(404).json({message: "Not found"})
+    }
+})
+
 gameRouter.post("/", async (req, res, next) => {
     if (req.body?.method && req.body.method === "SEED") {
 
@@ -66,6 +75,18 @@ gameRouter.post("/", async (req, res) => {
 gameRouter.delete("/", async (req, res) => {
     await Game.deleteMany({})
     res.status(204).json({message: "games is leeg"})
+})
+
+gameRouter.options("/", (req, res) => {
+    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+    res.header("Access-Control-Allow-Headers", "Content-Type, Accept")
+    res.header("Allow", "GET, POST, OPTIONS").status(204).send()
+})
+
+gameRouter.options("/:id", (req, res) => {
+    res.header("Access-Control-Allow-Methods", "GET, OPTIONS")
+    res.header("Access-Control-Allow-Headers", "Content-Type, Accept")
+    res.header("Allow", "GET, OPTIONS").status(204).send()
 })
 
 export default gameRouter

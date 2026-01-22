@@ -40,13 +40,10 @@ router.get("/", async (req, res) => {
     }
 
     //query
-    let query = Review.find(
-        filter
-    ).select(["title", "player", "favorite"])
-        .skip(skip).limit(limit).populate({
+    let games = await Review.find(filter)
+        .select(["title", "player", "favorite"]).skip(skip).limit(limit).populate({
             path: "game", populate: {path: "genres"}
         })
-    let games = await query
 
     if (games) {
         const collection = {
@@ -151,11 +148,16 @@ router.post("/", async (req, res, next) => {
 
 //create nieuw resource
 router.post("/", async (req, res) => {
-    if (req.body?.title && req.body?.game && req.body?.genre && req.body?.player && req.body?.playedConsole && req.body?.review) {
+    if (req.body?.title && req.body?.game && req.body?.player && req.body?.playedConsole && req.body?.review) {
+        const gameid = req.body.game
+        const checkGame = await Game.find({gameid}).select("_id")
+        if (!checkGame) {
+            res.status(400).json({message: "Game doesn't exist"})
+        }
+
         const game = Review({
             title: req.body.title,
             game: req.body.game,
-            genre: req.body.genre,
             player: req.body.player,
             playedConsole: req.body.playedConsole,
             review: req.body.review,
@@ -164,7 +166,7 @@ router.post("/", async (req, res) => {
         await game.save()
         res.status(201).json(game)
     } else {
-        res.status(400).json({message: "Something went wrong"})
+        res.status(400).json({message: "There is a field missing"})
     }
 })
 
@@ -176,13 +178,18 @@ router.put("/:id", async (req, res) => {
 
     try {
         const game = await Review.findById(id)
-        if (!game) {
+        console.log(game)
+        if (!game || game === []) {
             res.status(404).json({message: "Not found"})
+        }
+        const gameId = req.body.game
+        const checkGame = await Game.find({gameId}).select("_id")
+        if (!checkGame) {
+            res.status(400).json({message: "Game doesn't exist"})
         }
 
         game.title = req.body.title
         game.game = req.body.game
-        game.genre = req.body.genre
         game.player = req.body.player
         game.playedConsole = req.body.playedConsole
         game.review = req.body.review
@@ -214,11 +221,13 @@ router.patch("/:id", async (req, res) => {
             }
 
             if (req.body.game) {
-                game.game = req.body.game
-            }
+                const gameId = req.body.game
+                const checkGame = await Game.find({gameId}).select("_id")
+                if (!checkGame) {
+                    res.status(400).json({message: "Game doesn't exist"})
+                }
 
-            if (req.body.genre) {
-                game.genre = req.body.genre
+                game.game = req.body.game
             }
 
             if (req.body.player) {
