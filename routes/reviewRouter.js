@@ -46,6 +46,7 @@ router.get("/", async (req, res) => {
         })
     if (req.query?.favorite || req.query?.genres) {
         totalItems = games.length
+        totalPages = Math.ceil(games.length / limit)
     }
 
     if (games) {
@@ -61,7 +62,7 @@ router.get("/", async (req, res) => {
             },
             pagination: {
                 currentPage: page,
-                currentItems: limit || totalItems,
+                currentItems: games.length,
                 totalPages: totalPages || 1,
                 totalItems: totalItems,
                 _links: {
@@ -133,11 +134,11 @@ router.post("/", async (req, res, next) => {
             const number = Math.floor(Math.random() * await Game.countDocuments())
 
             const game = Review({
-                title: fakerNL.lorem.slug(5),
+                title: fakerNL.lorem.words(5),
                 player: fakerNL.book.author(),
                 game: seedgame[number],
                 playedConsole: fakerNL.lorem.word(),
-                review: fakerNL.lorem.slug(20)
+                review: fakerNL.lorem.words(50)
             })
             game.save()
             games.push(game)
@@ -293,7 +294,7 @@ router.patch("/:id", async (req, res) => {
             res.status(400).send(e.message)
         }
     } else {
-        res.status(400).json({message: "Something went wrong"})
+        res.status(400).json({message: "Body is empty"})
     }
 })
 
@@ -321,9 +322,9 @@ router.options("/", (req, res) => {
 })
 
 router.options("/:id", (req, res) => {
-    res.header("Access-Control-Allow-Methods", "GET, PUT, DELETE, OPTIONS")
+    res.header("Access-Control-Allow-Methods", "GET, PUT, PATCH, DELETE, OPTIONS")
     res.header("Access-Control-Allow-Headers", "Content-Type, Accept")
-    res.header("Allow", "GET, PUT, DELETE, OPTIONS").status(204).send()
+    res.header("Allow", "GET, PUT, PATCH, DELETE, OPTIONS").status(204).send()
 })
 
 export default router
