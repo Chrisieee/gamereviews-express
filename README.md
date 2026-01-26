@@ -14,6 +14,8 @@ Deze webservice is gemaakt in Express met een MongoDB database. Dit is onderdeel
 
 ## To Do:
 
+### Moet:
+
 ### Eventueel:
 
 - Games aanpassen

@@ -2,6 +2,7 @@ import express from "express"
 import {fakerNL} from "@faker-js/faker"
 import Review from "../models/reviewModel.js"
 import Game from "../models/gameModel.js";
+import mongoose from "mongoose";
 
 const router = express.Router()
 
@@ -41,7 +42,7 @@ router.get("/", async (req, res) => {
 
     //query
     let games = await Review.find(filter)
-        .select(["title", "player", "favorite"]).skip(skip).limit(limit).populate({
+        .select(["title", "player", "favorite"]).skip(skip).limit(limit).sort({createdAt: -1}).populate({
             path: "game", populate: {path: "genres"}
         })
     if (req.query?.favorite || req.query?.genres) {
@@ -153,22 +154,18 @@ router.post("/", async (req, res, next) => {
 //create nieuw resource
 router.post("/", async (req, res) => {
     if (req.body?.title && req.body?.player && req.body?.playedConsole && req.body?.review) {
-        const gameid = req.body?.game
-        let addedGame = ""
+        let addedGame
 
-        let check = false
-        const checkGames = await Game.find().select("_id")
-        for (let game of checkGames) {
-            if (gameid === game) {
-                check = true
+        if (req.body.game && mongoose.Types.ObjectId.isValid(req.body.game)) {
+            const exists = await Game.exists({_id: req.body.game})
+            if (exists) {
                 addedGame = req.body.game
             }
         }
 
-        if (!check) {
-            const seedgame = await Game.find({}).select("_id")
-            const number = Math.floor(Math.random() * await Game.countDocuments())
-            addedGame = seedgame[number]
+        if (!addedGame) {
+            const randomGame = await Game.aggregate([{$sample: {size: 1}}])
+            addedGame = randomGame[0]._id
         }
 
         const game = Review({
@@ -193,20 +190,18 @@ router.put("/:id", async (req, res) => {
     const id = req.params.id
 
     if (req.body?.title && req.body?.player && req.body?.playedConsole && req.body?.review) {
-        const gameid = req.body?.game
-        let addedGame = ""
-        let check = false
-        const checkGames = await Game.find().select("_id")
-        for (let game of checkGames) {
-            if (gameid === game) {
-                check = true
+        let addedGame
+
+        if (req.body.game && mongoose.Types.ObjectId.isValid(req.body.game)) {
+            const exists = await Game.exists({_id: req.body.game})
+            if (exists) {
                 addedGame = req.body.game
             }
         }
-        if (!check) {
-            const seedgame = await Game.find({}).select("_id")
-            const number = Math.floor(Math.random() * await Game.countDocuments())
-            addedGame = seedgame[number]
+
+        if (!addedGame) {
+            const randomGame = await Game.aggregate([{$sample: {size: 1}}])
+            addedGame = randomGame[0]._id
         }
 
         const game = await Review.findById(id)

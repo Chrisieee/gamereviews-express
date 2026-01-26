@@ -15,7 +15,7 @@ gameRouter.get("/", async (req, res) => {
 })
 
 gameRouter.get("/:id", async (req, res) => {
-    const game = await Game.find(req.params.id)
+    const game = await Game.findById(req.params.id)
     if (game) {
         res.status(200).json(game)
     } else {
